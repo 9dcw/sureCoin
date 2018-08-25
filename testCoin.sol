@@ -1,7 +1,7 @@
 pragma solidity ^0.4.18; // I guess?
 
 
-contarct testCoin {
+contract testCoin {
     /* creates an array of all the balances */
     mapping (address => uint256) public balanceOf;
     
@@ -14,7 +14,7 @@ contarct testCoin {
     /* send coins */
     function transfer(address _to, uint256 _value) public {
         require(balanceOf[msg.sender] >= _value); // check if sender has enough coins
-        require(balanceOf[_to] + value >= balanceOf[_to]); // check for overflows
+        require(balanceOf[_to] + _value >= balanceOf[_to]); // check for overflows
         balanceOf[msg.sender] -= _value; // subtract from sender
         balanceOf[_to] += _value; // add to receiver
     }
