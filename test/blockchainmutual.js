@@ -1,6 +1,10 @@
-// test coins initiation
-// test coin sending
-x
+// test add claim
+// test vote
+// test vote count
+// test voter record
+// test policyholder claims count
+// 
+
 var blockchainmutual = artifacts.require("./blockchainmutual.sol");
 
 

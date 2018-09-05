@@ -1,47 +1,10 @@
 pragma solidity 0.4.24;
 
-// will need to specify the original holder of tokens, initial supply, token name and symbol
-// Then we need a way for people to get the tokens
-// that will mean calling this token contract from the main contract body
+// next we add the ability to submit a claim and vote on claims submitted
+// votes attract sureCoins
 
-// add a policyholder by paying our tokens in
-// keep an array for each policyholder
-// last digit on each array is whether they're current
 
-// now we need to issue the ICO upon creation of the company
-// then we can put a button on there that says "buy sureCoins"
-// then we build the ability to pay for a policy with sureCoins
 
-// later we'll build in the simulator for policyholder performance
-// we can have someone log their email address.. is there a way to hash that so I can't even see it?
-/*
-contract sureCoin  {
-
-  constructor () public {
-    //bytes32 name = "sureCoin";
-    //bytes32 symbol = "SCO";
-    uint decimals = 2;
-    // million coins
-    uint INITIAL_SUPPLY = 1000000 * (10 ** decimals);
-    uint totalSupply = INITIAL_SUPPLY;
-    balances[msg.sender] = INITIAL_SUPPLY;
-  }
-  
-  mapping(address => uint) public balances; // List of user balances.
-  
-  event Transfer(address indexed from, address indexed to, uint value);
-  
-  function transfer(address _to, uint _value) public {
-    balances[msg.sender] = balances[msg.sender] - _value;
-    balances[_to] = balances[_to] + _value;
-    emit Transfer(msg.sender, _to, _value);
-  }
-  
-  function balanceOf(address _owner) public constant returns (uint balance) {
-    return balances[_owner];
-  }
-}
-*/
 contract blockChainMutual {
   address public myself;
   address public owner;
@@ -89,18 +52,9 @@ contract blockChainMutual {
   struct policyholder {
     bool current;
     bool isExist;
+    bool[] claimHistory;
   }
 
-  /*
-  function policyholderCheck () public constant returns (bool check) {
-    bool innerCheck = false;
-    if (policyholders[msg.sender].isExist) {
-      innerCheck = true;
-    }
-    
-    return innerCheck;
-    }
-  */
   function buyPolicy () public {
 
     require(policyholders[msg.sender].isExist=true, "you need to be a policyholder first!");
@@ -108,7 +62,7 @@ contract blockChainMutual {
     //transfer(address(this), 100);
     policyholders[msg.sender].current=true;
     policyCount ++;
-    //inForcePolicyholders[msg.sender]=true;
+    
     emit policyEvent();
   }
   
@@ -139,14 +93,60 @@ contract blockChainMutual {
     //inForcePolicyholders[msg.sender]=true;
   }
 
+  
+  
+  struct claim {
+    bool resolved; // whether the vote has happened
+    bool valid; // whether the claim is real
+    uint value; // amount claimed
+    uint votesFor; // votes in favor 
+    uint votesCount; // all votes
+    address[] voted; // the list of users that have voted on the claim
+    address submitter;
+  }
 
   
-  // store accounts that have voted
-  //mapping(address=> bool) public inForcePolicyholders;
+  
+  // the listing of claims
+  mapping(uint=> claim) public claimsListing;
 
+  uint claimsCount; // will be used to track the claims ID
+  
   // record that we added or canceled a policy
   event policyEvent ();
 
+  function submitClaim (uint value){
+    claimsCount ++;
+    policyholders[msg.sender].claimHistory.push(); // not sure of the syntax here.. want to keep a list of the policyholder
+    claimsListing[claimsCount]=(, , value, ,msg.sender); // also not sure of the syntax
+    // would be cool to put together an evaluation page that only the account ID holder can access.
+    // that will include the image and write-up of a submitted claim
+    // along with some policy information 
+    
+  }
+  
+  function claimVote (uint _claimID, bool result) public {
+    // require that they haven't voted before
+    require(!claimsListing[_claimID].voted); // this is a test of whether the address has voted
+    
+    // require a valid claim
+    require(_claimID > 0 && _claimID <= claimsCount);
+    
+    // record that voter has voted
+    claimsListing[_claimID].voted[msg.sender]=true;
+
+    // update candidate vote count
+    claimsListing[_claimID].votesCount ++;
+
+    // is it for or against?!
+    if (result == true){
+      claimsListing[_claimID].votesFor ++;
+    }
+    // trigger event
+    emit votedEvent(_claimID);
+    
+  }
+  
   // self destruct
   function kill() public {
     if(msg.sender == owner) selfdestruct(owner);
