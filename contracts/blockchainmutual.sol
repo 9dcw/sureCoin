@@ -129,7 +129,7 @@ contract blockChainMutual {
     // require that they haven't voted before
     require(!claimsListing[_claimID].voted); // this is a test of whether the address has voted
     
-    // require a valid claim
+    // require a valid claim number
     require(_claimID > 0 && _claimID <= claimsCount);
     
     // record that voter has voted
