@@ -133,7 +133,7 @@ contract blockChainMutual {
     require(_claimID > 0 && _claimID <= claimsCount);
     
     // record that voter has voted
-    claimsListing[_claimID].voted[msg.sender]=true;
+    claimsListing[_claimID].voted[msg.sender]=true; // don't I need to delete this?
 
     // update candidate vote count
     claimsListing[_claimID].votesCount ++;
