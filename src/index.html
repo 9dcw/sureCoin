@@ -20,17 +20,54 @@
             <p class="text-center">Loading...</p>
           </div>
           <div id="content" style="display: none;">
-            <table class="table">
+	    <p id="accountAddress" class="text-center"></p>
+	    <table class="table">
               <tbody id="policyholderResults">
               </tbody>
             </table>
-            <hr/>
-            <p id="accountAddress" class="text-center"></p>
+             <hr/>
           </div>
-        </div>
+        </div
       </div>
     </div>
-    
+
+    <div id="claimsVotingArea" style="display: none;">
+      <hr />
+      <h3 id="claimsTitle" style="display: none;">Vote on a Claim!</h3>
+      <form id="claimList" style="display: none;">
+	<div class="form-group">
+	  <label for="openClaimSelect">Select Claim (Claim Info Displayed Below)</label>
+	  <select class="form-control" id="openClaimSelect" onchange="App.displayClaim();">
+	  </select>
+	</div>
+      </form>
+      <div id = "openClaimsDataArea" >
+	<table class="table">
+	  <tbody id="openClaimsData" >
+	  </tbody>
+        </table>
+      </div>
+      <form id="voteButton" onSubmit="App.claimVote(); return false;" style="display: none;">
+	<div class="form-group">
+	  <label for="edict">Valid or Not Valid?</label>
+	  <select class="form-control" id="edict">
+	    <option value="valid">Valid</option>
+	    <option value="invalid">Invalid</option>
+	  </select>
+	</div>
+	<button type="submit" class="btn btn-primary">Vote!</button>
+	<hr />
+      </form>
+      <div id = "claimsVotingHistory" style="display: none;">
+	<h3>Claim Voting Hisotry</h3>
+	<table class="table">
+	  <tbody id="votingHistoryTable" style="display: none;">
+	  </tbody>
+        </table>
+      </div>
+
+
+    </div>
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
