@@ -37,6 +37,7 @@ App = {
 	var loader = $("#loader");
 	var content = $("#content");
 
+	var divBlockTime;
 	var coinBalanceTemplate;
 	var availableBalanceTemplate;
 	var policyholderTemplate;
@@ -47,8 +48,12 @@ App = {
 	var votingRecordV;
 	var openClaimsList;
 	var votableClaimIDs = [];
-	var allClaimsCount;
+	var portfolioData;
 
+	var policyholderList;
+
+	var votableL;
+	var portfolioData;
 	var accountTextID;
 	var deleteButton;
 	policyholderResults.empty();
@@ -67,40 +72,70 @@ App = {
 	App.contracts.BlockchainMutual.deployed().then(function(instance) {
 	    companyInstance = instance; 
 	    console.log(App.account);	    
+	    return companyInstance.divBlockTime();
+	}).then(function(dbt){
+	    divBlockTime = dbt;
+	    return companyInstance.getPortfolioData();
+	}).then(function(portData){
+	    console.log('portdata', portData);
+	    
+	    var ratio = (parseFloat(portData[2])+parseFloat(portData[1]))/parseFloat(portData[0]);
+
+	    var txt= "<hr/>Total Premium: "+portData[0].toString() +"<hr/>";
+	    txt = txt + " Total Claims: "+portData[1].toString();
+	    txt = txt + ", Total Dividends: "+portData[2].toString() + "<hr/>";
+	    txt = txt + " Paid Loss Ratio: " + ratio.toFixed(4)*100;
+	    txt = txt + "<hr/>";
+	    portfolioData=txt;
+	    
+	    
 	    return (companyInstance.getPolicyholderData(App.account));
 	}).then(function(knownPolicyholderData){
-	     
+	    
 	    // first element is whether they are a policyholder
 	    // second element is whether they are current
 	    policyholderResults.empty();
-	    //console.log(policyholderResults);
-
+	    //console.log(knownPolicyholderData);
+	    
 	    var knownPolicyholder = knownPolicyholderData[1]
-	    currentPolicyholder = knownPolicyholderData[0];	    
-
+	    currentPolicyholder = knownPolicyholderData[0];
+	    var date = new Date;
+	    // find out how long it's been since five minutes ago (to correct for block mining)
+	    //console.log(date.getTime()/1000);
+	    //console.log(knownPolicyholderData[3].toNumber());
+	    //console.log('the diff', date.getTime()/1000 - knownPolicyholderData[3]);
+	    // adjust for 5 minutes
+	    var daysSinceDiv = Math.floor((date.getTime()/1000 - knownPolicyholderData[3]-60*5) / (divBlockTime));
+	    
 	    var policyholderJoinButton = '<form onSubmit="App.addPolicyholder(); return false;"><button type="submit" class="btn btn-primary">Join!</button></form>'
-
+	    
 	    if (knownPolicyholder == false){
 		accountText.empty()
 		accountText.append(accountTextID);
-
+		
 		// they are not a current policyholder, show a buy policy button!
 		var policyHolderText = 'Not a policyholder yet!';
 		policyholderTemplate =  policyholderTemplate+'<tr><td>'+policyHolderText+"</td><td>" + policyholderJoinButton + "</td></tr>";
 		coinRequestTemplate = '';
 	    }
-	    //  what happens if this isn't a policyholder... ask to join
+	    
+	    //  what happens if a policyholder... 
 	    else
 	    {
-		var policyBuyButton = '<form onSubmit="App.buyPolicy(); return false;"><button type="submit" class="btn btn-primary">Buy Policy</button></form>'
+		var policyBuyButton = '<form onSubmit="App.buyPolicy(); return false;"><button type="submit" class="btn btn-primary">Buy Policy</button></form>';
 
-		var policyCxlBtn = '<form onSubmit="App.cancelPolicy(); return false;"><button type="submit" class="btn btn-primary">Cancel Policy</button></form>'
+		var policyCxlBtn = '<form onSubmit="App.cancelPolicy(); return false;"><button type="submit" class="btn btn-primary">Cancel Policy</button></form>';
 
-		var clmSubmitBtn = '<form onSubmit="App.submitClaim(); return false;"><button type="submit" class="btn btn-primary">Submit Claim</button></form>'
+		var clmSubmitBtn = '<form onSubmit="App.submitClaim(); return false;"><button type="submit" class="btn btn-primary">Submit Claim</button></form>';
 
-		var deletePolicyholderButton = '<form onSubmit="App.deletePolicyholder(); return false;"><button type="submit" class="btn btn-primary">Delete Your Account</button></form>'
+		var claimDividendBtn =  '<form onSubmit="App.claimDividend(); return false;"><button type="submit" class="btn btn-primary">Claim Dividend</button></form>';
+		var divText = "<tr><td>"+daysSinceDiv.toString()+" Dividends Unclaimed!</td><td>"+claimDividendBtn + "</td></tr>";
+
+		var deletePolicyholderButton = '<form onSubmit="App.deletePolicyholder(); return false;"><button type="submit" class="btn btn-primary">Delete Your Account</button></form>';
+		
 		accountText.empty()
-		accountText.append(accountTextID, '<p>'+deletePolicyholderButton+'</p>');
+		accountText.append(portfolioData, accountTextID, '<p>'+deletePolicyholderButton+'</p>');
+		
 		var coinRequestButton = '<form onSubmit="App.withdrawal(100); return false;"><button type="submit" class="btn btn-primary">Withdraw 100 coins</button></form>'
 		coinRequestTemplate = "<tr><td>Request More Coins!</td><td>" + coinRequestButton + "</td></tr>";
 		//console.log('checking policyholder');
@@ -114,6 +149,10 @@ App = {
 		    var policyHolderText = 'Current Policyholder!';
 		    policyholderTemplate = policyholderTemplate+ '<tr><td>'+policyHolderText+"</td><td>"+policyCxlBtn + "</td></tr>";
 		    policyholderTemplate = policyholderTemplate+ "<tr><td>Submit Claims</td><td>"+clmSubmitBtn + "</td></tr>";
+		    console.log('days', daysSinceDiv);
+		    if (daysSinceDiv >= 1) {
+			policyholderTemplate = policyholderTemplate+ divText;
+		    }
 		}
 		
 		else {
@@ -121,16 +160,16 @@ App = {
 		    // if they aren't a policyholder, we can show the buy a policy button!
 		    var policyHolderText = "We remember you but can't find a policy! Want to buy back in?";
 		    policyholderTemplate =  policyholderTemplate+'<tr><td>'+policyHolderText+"</td><td>" + policyBuyButton + "</td></tr>";
-		    console.log('policyholdertemplate', policyholderTemplate);
+		    //console.log('policyholdertemplate', policyholderTemplate);
 		}
 	    }
 	    
 	    policyholderResults.append(policyholderTemplate);
-	}).then(function(){ // this is necessary so we interrupt the whole process so the call can resolve
-	    return companyInstance.balanceOf(App.account);	    
-	}).then(function(balance){
-    	    
-	    coinBalanceTemplate = "<tr><td>Your SureCoin Balance</td><td>" + balance + "</td></tr>";
+	}).then(function(){ 
+	    return companyInstance.balanceOf(App.account);	   
+	}).then(function(bal){
+    	    //console.log('balance!', bal);
+	    coinBalanceTemplate = "<tr><td>Your SureCoin Balance</td><td>" + Math.round(bal) + "</td></tr>";
 	    coinBalanceTemplate = coinBalanceTemplate + coinRequestTemplate;
 	    
 	}).then(function(){ // this is necessary so we interrupt the whole process so the call can resolve
@@ -150,7 +189,7 @@ App = {
 	    return companyInstance.getPolicyholderVotingRecord(App.account);
 	}).then(function(votingRecord){
 	    // pull in the voting record
-	    console.log('voting record compare', votingRecord.length, votingRecord,openClaimsList.length, openClaimsList);
+	    //console.log('voting record compare', votingRecord.length, votingRecord,openClaimsList.length, openClaimsList);
 
 
 	    // yuck, a hack!
@@ -176,44 +215,72 @@ App = {
 	    
   	    // now we have the data and the claim ID options to select
 	    // Do not allow a user to vote after they have already voted!
-	    console.log(votableL, currentPolicyholder);
-	    return (votableL);
-	}).then(function(voltableL){
-	    console.log('outer_claimsarray', claimsDataArray.length, claimsDataArray);		    
-	    if (votableL > 0 && currentPolicyholder == true) {
+	    //console.log(votableL, currentPolicyholder);
+	    return companyInstance.getPolicyholderList();
+	}).then(function(policyholderListRaw){
 
-		// loop through the open claims that
-		// this user hasn't voted on yet. 
-		$('#claimList').show();
-		var openClaimsSelect = $('#openClaimSelect');
-		openClaimsSelect.empty();
+	    if (currentPolicyholder == true){
 		
-		var openClaimsData = $('#openClaimsData');
-		openClaimsData.empty();
-
-		$('#openClaimsData').show();
-		$('#claimsVotingArea').show();
-		
-		for (var i = 1; i <= votableL; i++) {
-		    console.log('i:', i, votableL);
-		    console.log('votable test', votableClaimIDs[i-1]);
-		    claimID = votableClaimIDs[i-1];
-		    var candidateOption = "<option value='" + claimID + "' >" + claimID + "</ option>"
-		    openClaimsSelect.append(candidateOption);
+		policyholderList = policyholderListRaw;
+		if (policyholderList.length > 1) {
+		    // only if this isn't the only poilcyholder!
+		    $('#policyholderList').show();
 		}
 
-		console.log('policyholder?', currentPolicyholder, votableL);
-		$('#claimsVotingArea').show();
-		$('#claimsTitle').show();
-		$('#claimsList').show();
-		$('#openClaimsDataArea').show();
-		$('#openClaimsData').show();
-		
-		App.displayClaim();
-		App.displayVotingHistory();
+		var policyholderSelect = $('#policyholderSelect');
+		policyholderSelect.empty();
+
+		for (var i = 1; i <= policyholderList.length; i++) {
+		    if (policyholderList[i-1] != undefined) // is this how it presents?
+		    {
+			var id = policyholderList[i-1];
+			if (id == App.account) {id = 'You!'} 
+			var idOption = "<option value='"+id+ "' >" +id + "</ option>"
+			policyholderSelect.append(idOption);
+
+		    }
+		}
 
 		
+		if (votableL > 0) {
+
+		    // loop through the open claims that
+		    // this user hasn't voted on yet. 
+		    $('#claimList').show();
+		    var openClaimsSelect = $('#openClaimSelect');
+		    openClaimsSelect.empty();
+		    
+		    var openClaimsData = $('#openClaimsData');
+		    openClaimsData.empty();
+
+		    $('#openClaimsData').show();
+		    $('#claimsVotingArea').show();
+
+
+		    /// here we can input the policyholder addresses!
+		    // need to build in the coutn
+
+		    //$('#claimList').show();
+		    for (var i = 1; i <= votableL; i++) {
+			claimID = votableClaimIDs[i-1];
+			var candidateOption = "<option value='" + claimID + "' >" + claimID + "</ option>"
+			openClaimsSelect.append(candidateOption);
+		    }
+		    
+		    
+		    $('#claimsTitle').show();
+		    $('#claimsList').show();
+		    $('#openClaimsDataArea').show();
+		    $('#openClaimsData').show();
+		    
+		    App.displayClaim();
+		    App.displayPolicyholder();
+		}
+		
+		// don't need an open claim to display this
+		App.displayVotingHistory();
 	    }
+
 	    return (votableL);
 	}).then(function(votableL) {
 	    loader.hide();
@@ -233,8 +300,10 @@ App = {
 	}).then(function(status) {
 	    if ( status[1] == false) // not yet a policyholder
 	    {App.addPolicyholder()}
-	    //console.log('policyholder?', status[1], 'current?', status[0],"buying policy!");
-	    return companyInstance.buyPolicy({from:App.account})
+	    return companyInstance.balanceOf(App.account);
+	}).then(function(bal){
+	    if (bal < 100) {return 0}
+	    else {return companyInstance.buyPolicy({from:App.account})}
 	}).then(function(result) {
 	    // Wait for data to update
 	    $("#content").hide();
@@ -272,17 +341,73 @@ App = {
     
     submitClaim: function (){
 	App.contracts.BlockchainMutual.deployed().then(function(instance){
-	    return instance.submitClaim(10000);
+	    return instance.submitClaim(200);
 	});
     },
-    
-    displayClaim: function (){
 
+
+
+    // I need to define the table that will show the addresses!
+
+    coinTransfer: function (address, amount) {
+	console.log('coin transfer!');
+	var companyInstance;
+	App.contracts.BlockchainMutual.deployed().then(function(instance){
+	    companyInstance = instance;
+	    return companyInstance.balanceOf(App.account);
+	}).then(function(balance){
+
+	    console.log('balance!', balance.toNumber(), amount);
+	    if (balance.toNumber() >=amount){
+		console.log('transferring!');
+		companyInstance.transfer(address, amount);
+	    }
+	    else {$('#policyholderDataArea').append('error, not enough funds!')}
+	});
+    },
+
+    
+    displayPolicyholder: function (address){
+	
+	if (address==undefined){
+	    address = $('#policyholderSelect').val();
+	}
+	if (address == 'You!'){address=App.account}
+	App.contracts.BlockchainMutual.deployed().then(function(instance){
+	    instance.getPolicyholderClaimsData(address).then(function(polData) {
+
+		// allow transfer of coins to the account in question
+		var transferBtn = '<form onSubmit="App.coinTransfer('+address.toString()+',100); return false;"><button type="submit" class="btn btn-primary">transfer 100 coins to this guy!</button></form>'
+		
+ 		var policyholderHeader;
+		policyholderHeader = '<tr><th>Address</th><th>Claims Count</th><th></th></tr>';
+		if (address == App.account){
+		    submitter = 'You!';transferBtn = '';
+
+					   }
+		else {submitter = address.substring(0,7)+ '...';
+		      //policyholderHeader =  = '<tr><th>Address</th><th>Claims Count</th><th></tr>';			    
+		      
+		     }
+		
+		var claimsCount = polData.length;
+		console.log(claimsCount);
+		// this is going to get pushed to a list of the claims for information
+
+		var policyholderTemplate = "<tr><td>" + submitter + "</td><td>" + claimsCount+"</td><td>"+transferBtn+"</td></tr>"
+		$('#policyholderDataTable').html(policyholderHeader+policyholderTemplate);
+		$('#policyholderDataTable').show();
+	    });
+	});
+    },
+
+    
+    displayClaim: function (accountID){
+	
 	var claimID = $('#openClaimSelect').val();
-	console.log('claimId', claimID);
+	
 	App.contracts.BlockchainMutual.deployed().then(function(instance){
 	    instance.getClaim(claimID).then(function(claimData) {
-		console.log(claimID);
 		//var claimID = claimData[0];
 		var submitter = claimData[1];
 		if (submitter == App.account){submitter = 'You!'; $('#voteButton').hide()}
@@ -307,8 +432,7 @@ App = {
 		var votingHistoryHeader = '<tr><th>VotedClaimID</th><th>Vote</th></tr>';
 		var votingHistory ='';
 		var votableL = claimData.length
-
-		console.log('votableL');
+		
 		if (votableL > 0) {
 		    $('#claimsVotingHistory').show()
 		    $('#votingHistoryTable').show()   
@@ -317,7 +441,10 @@ App = {
 		for (var i = 1; i <= votableL; i++) {
 		    var voteResult = false;
 		    if (claimData[i-1][1]== 1) {voteResult = true}
-		    votingHistory = votingHistory + "<tr><td>" + claimData[i-1][0] + "</td><td>" + voteResult + "</td></tr>";
+		    votingHistory = votingHistory + "<tr><td>" + claimData[i-1][0];
+		    //votingHistory = votingHistory + "<tr><td>" + claimData[i-1][2];
+		    
+		    votingHistory = votingHistory + "</td><td>" + voteResult + "</td></tr>";
 		}
 		$('#votingHistoryTable').html(votingHistoryHeader + votingHistory);
 		
@@ -331,9 +458,9 @@ App = {
 	var resultBool; 
 	if (result == 'valid') {resultBool = true}
 	else {resultBool = false}
-	console.log(claimID, result, resultBool);
+	
 	App.contracts.BlockchainMutual.deployed().then(function(instance){
-	    console.log(claimID, resultBool);
+	
 	    return instance.claimVote(claimID, resultBool);
 	});
     },
@@ -356,6 +483,12 @@ App = {
 	    App.contracts.BlockchainMutual.deployed().then(function(instance){
 		return instance.withdrawal(value);
 	    });
+    },
+
+    claimDividend: function () {
+	App.contracts.BlockchainMutual.deployed().then(function(instance){
+		return instance.issueDividend();
+	});
     },
     
     listenForEvents: function() {

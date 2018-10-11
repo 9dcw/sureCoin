@@ -4,22 +4,31 @@ pragma solidity 0.4.24;
 // votes attract sureCoins
 
 
-
 contract blockChainMutual {
   address public myself;
   address public owner;
-  //Store policyholder Count.. can't count it later in the blockchain
+  
+  //Store policyholder Count.. need this for an index on the address list
   uint public policyholdersCount = 0;
+  
+  // a list of the policyholder Addresses
+  address[] policyholderList;
+  
   uint public policyCount = 0;
   // all claims filed
   uint public claimsCount = 0;
   // count of open claims, can just count the elements in js
   uint public openClaimsCount = 0;
   // open claims
+  
   uint[] openClaims;
   mapping(address => uint) public balances; // List of user balances.
   // the listing of claims
   mapping(uint=> claim) claimsListing;
+  uint public dividendAmount = 10;
+  uint public divBlockTime=60*60; // hours
+  // total premium, total claims, total dividends
+  uint[3] public portfolioData;
   
   struct claim {
     uint id;
@@ -46,31 +55,38 @@ contract blockChainMutual {
   // record that we added or canceled a policy
   event BCMevent(string eventType, uint id, uint value, address from, address to);
   
-  function transfer(address _to, uint _value) public {
-    balances[msg.sender] = balances[msg.sender] - _value;
+  
+  // the generalized version of the transfer. Only callable internally. 
+  function transfer_g(address _from, address _to, uint _value) private {
+    require (balances[_from]>=_value, "need enough in your account!");
+    balances[_from] = balances[_from] - _value;
     balances[_to] = balances[_to] + _value;
-    emit Transfer(msg.sender, _to, _value);
-    emit BCMevent('transfer', 0,_value, msg.sender, _to);
-  }
-
-  function withdrawal(uint _value) public {
     
-    balances[address(this)] = balances[address(this)] - _value;
-    balances[msg.sender] = balances[msg.sender] + _value;
-    emit BCMevent('transfer', 0,_value, address(this), msg.sender);
-    emit Transfer(address(this), msg.sender, _value);
+    emit Transfer(_from, _to, _value);
+    emit BCMevent('transfer', 0,_value, _from, _to);
   }
 
+  
+  function transfer(address _to, uint _value) public {
+    transfer_g(msg.sender, _to, _value);
+  }
+  
+  function withdrawal(uint _value) public {
+    transfer_g(address(this), msg.sender, _value);
+  }
+  
   function payClaim (uint _claimID) public {
     address claimant = claimsListing[_claimID].submitter;
     uint claimValue = claimsListing[_claimID].value;
-    balances[address(this)] = balances[address(this)] - claimValue;
-    balances[claimant] = balances[claimant] + claimValue;
-    emit Transfer(address(this),claimant, claimValue);
-    emit BCMevent('transfer', 0,claimValue, address(this), claimant);
+    transfer_g(address(this), claimant, claimValue);
+
+    // now they've had a claim
     policyholders[claimant].claims=true;
+    // now we're adding the claim information to their data
     policyholders[claimant].paidClaimsData.push([_claimID,claimValue]);
     emit BCMevent('claimPayment', _claimID,claimValue, address(this), claimant);
+    portfolioData[1] += claimValue;
+    
   }
   
   function balanceOf(address _owner) public constant returns (uint balance) {
@@ -84,33 +100,49 @@ contract blockChainMutual {
     bool claims;
     uint[2][] paidClaimsData; // this will be claim number with value
     uint[2][] votingRecord; // claimID with yes or no attached
+    uint lastDividendDate; // timestamp since last dividend
+    uint id; // index of the policyholder in the list of ids
   }
-
+  
   mapping(address=> policyholder) policyholders;
   
-  function getPolicyholderData (address id) public constant returns (bool, bool, bool) {
-    return (policyholders[id].current, policyholders[id].isExist,
-	    policyholders[id].claims);
-  }
   
-  function getPolicyholderVotingRecord (address id) public constant returns (uint[2][]) {
-    return (policyholders[id].votingRecord);
-  }
+  // going to need to accumulate a list of policyholders
+  // that will mean a policyholder ID number, so if we delete the policyholder
+  // we can remove it from the list, too
   
 
-  function getPolicyholderClaimsData (address id) public constant returns (uint[2][]) {
-    return (policyholders[id].paidClaimsData);
+  function getPolicyholderList () public constant returns (address[]) {
+    return policyholderList;
+  }
+  
+  function getPolicyholderData (address addy) public constant returns (bool, bool, bool, uint, uint) {
+    return (policyholders[addy].current, policyholders[addy].isExist,
+	    policyholders[addy].claims,policyholders[addy].lastDividendDate,policyholders[addy].id);
+  }
+  
+  function getPolicyholderVotingRecord (address addy) public constant returns (uint[2][]) {
+    return (policyholders[addy].votingRecord);
+  }
+  
+  function getPolicyholderClaimsData (address addy) public constant returns (uint[2][]) {
+    return (policyholders[addy].paidClaimsData);
+  }
+
+  function getPortfolioData () public constant returns (uint, uint, uint) {
+    return (portfolioData[0], portfolioData[1], portfolioData[2]);
   }
   
   function buyPolicy () public {
-
+    
     require(policyholders[msg.sender].isExist=true, "you need to be a policyholder first!");
     //require(balanceOf(msg.sender) > 100, "you need 100 coins!");
     uint cost = 100;
     transfer(address(this), cost);
+    portfolioData[0] += cost;
     policyholders[msg.sender].current=true;
     policyCount ++;
-
+    
     // type, id, value, from, to
     emit BCMevent('policyPurchase', 0, cost,address(this),msg.sender );
   }
@@ -131,23 +163,28 @@ contract blockChainMutual {
     policyholders[msg.sender].current=false;
     policyholders[msg.sender].isExist=true;
     balances[msg.sender] = 0;
+    // add an ID
+    policyholders[msg.sender].id=policyholdersCount;
+    policyholderList.push(msg.sender);
+    
     emit BCMevent('addPolicyholder', policyholdersCount, 0,address(this),msg.sender);
     uint initialBalance = 100;
     withdrawal(initialBalance);
+    policyholders[msg.sender].lastDividendDate = block.timestamp;
     
     // type, id, value, from, to
   }
 
   function deletePolicyholder () public {
-    policyholdersCount --;
+    
     // dump the coins back into the bank
-    
     transfer(address(this), balanceOf(msg.sender));
-    
+
+    delete policyholderList[policyholders[msg.sender].id-1];
     delete policyholders[msg.sender];
+    policyholdersCount --;
     emit BCMevent('deletePolicyholder', 0, 0,msg.sender,address(this));
   }
-
   
   function hasVoted (uint claimID, address id) public constant returns (bool){
     return (claimsListing[claimID].voted[id]);
@@ -170,7 +207,7 @@ contract blockChainMutual {
     
     claimsCount ++;
     openClaimsCount ++;
-
+    
     openClaims.push(claimsCount);    
     claimsListing[claimsCount].id=claimsCount;
     claimsListing[claimsCount].submitter=msg.sender;
@@ -187,6 +224,36 @@ contract blockChainMutual {
     // along with some policy information 
   }
   
+  
+  function issueDividend () public {
+    // days since last dividend
+    uint divBlocks = (block.timestamp - policyholders[msg.sender].lastDividendDate)/(divBlockTime);
+    
+    //pull the cash
+    uint divAmt=divBlocks * dividendAmount;
+    withdrawal(divAmt);
+    
+    // update the account
+    portfolioData[2] += divAmt;
+    policyholders[msg.sender].lastDividendDate = block.timestamp;
+    emit BCMevent('dividend',0,divAmt, address(this),msg.sender);    
+    
+  }
+
+
+  /*
+  function catastrophe () public {
+    
+    // we should have some kind of catastrophic claim hit people, too.
+    // and have everyone in the pool eat the losses that spill over from
+    // this will need some kind of random element
+    // one person's bank
+
+    // if your pool gets wiped out, you loose.
+    // if your pool doesn't, your dividend rate bumps up
+
+  }
+  */
   function claimVote (uint claimID, bool result) public {
     // require that they haven't voted before
     require(claimsListing[claimID].voted[msg.sender]==false); // this is a test of whether the address has voted

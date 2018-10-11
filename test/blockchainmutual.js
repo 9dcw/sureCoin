@@ -65,8 +65,14 @@ contract("blockChainMutual", function(accounts) {
 	    assert.equal(count,1, "one policyholder");
 	    return (mutualInstance.getPolicyholderData(accounts[0]));
 	}).then(function(policyholder){
+	    assert.notEqual(policyholder[3],undefined);
 	    assert.equal(policyholder[0],false, "no active policy");
 	    assert.equal(policyholder[1],true, "real policy");
+	    assert.equal(policyholder[4],1, "ID confirmed");
+	    return mutualInstance.getPolicyholderList();
+	}).then(function(adr){
+	    //console.log('address?', adr)
+	    assert.equal(adr,accounts[0],'the address is correct');
 	    return (mutualInstance.policyCount());
 	}).then(function(count){
 	    assert.equal(count,0, "zero policies");
@@ -84,6 +90,13 @@ contract("blockChainMutual", function(accounts) {
 	    return (mutualInstance.policyCount());
 	}).then(function(count){
 	    assert.equal(count,1, "one policy");
+	    return (mutualInstance.getPortfolioData());
+	}).then(function(portData){
+	    console.log(portData);
+	    assert.equal(portData[0],100,'total premium is recorded');
+	    assert.equal(portData[1],0,'no claims recorded');
+	    assert.equal(portData[2],0,'no dividends recorded');
+
 	    return (mutualInstance.getPolicyholderData(accounts[0]));
 	}).then(function(policyholder){
 	    assert.equal(policyholder[0],true, "active policy");
@@ -94,8 +107,6 @@ contract("blockChainMutual", function(accounts) {
 	});
     });
 
-
-    
     it("Cancel policy", function() {
 	return blockchainmutual.deployed().then(function(instance) {
 	    mutualInstance = instance;
@@ -185,12 +196,13 @@ contract("blockChainMutual", function(accounts) {
 	    return (mutualInstance.getClaim(1));
 	}).then(function(claimData){
 	    assert.notEqual(claimData,undefined,"undefined!");
-	    assert.equal(claimData[0],accounts[0],'is the submitter right?');
-	    assert.equal(claimData[1],false,'has the vote resolved?');
-	    assert.equal(claimData[2],false,'not yet a valid claim');
-	    assert.equal(claimData[3],10000,'is the value right?!');
-	    assert.equal(claimData[4],0,'no votes for');
-	    assert.equal(claimData[5],0,'no votes at all');
+	    
+	    assert.equal(claimData[1],accounts[0],'is the submitter right?');
+	    assert.equal(claimData[2],false,'has the vote resolved?');
+	    assert.equal(claimData[3],false,'not yet a valid claim');
+	    assert.equal(claimData[4],10000,'is the value right?!');
+	    assert.equal(claimData[5],0,'no votes for');
+	    assert.equal(claimData[6],0,'no votes at all');
 	    return mutualInstance.hasVoted(1,accounts[0]);
 	}).then(function(voteCheck){
 	    assert.equal(voteCheck,true,'the user has voted');
@@ -217,14 +229,14 @@ contract("blockChainMutual", function(accounts) {
 	    assert.equal(voteCheck,true,'this user has voted!');
 	    return mutualInstance.getClaim(1);
 	}).then(function(claimData){
-	    assert.equal(claimData[4],1,'one vote for');
-	    assert.equal(claimData[5],1,'one vote overall');
+	    assert.equal(claimData[5],1,'one vote for');
+	    assert.equal(claimData[6],1,'one vote overall');
 	    return mutualInstance.claimVote(1,false, {from:accounts[2]});
 	}).then(function(){
 	    return mutualInstance.getClaim(1);
 	}).then(function(claimData){
-	    assert.equal(claimData[4],1,'one vote for');
-	    assert.equal(claimData[5],2,'two votes overall');
+	    assert.equal(claimData[5],1,'one vote for');
+	    assert.equal(claimData[6],2,'two votes overall');
 	    return mutualInstance.hasVoted(1,accounts[2]);
 	}).then(function(voteCheck){
 	    assert.equal(voteCheck,true,'this user has voted!');

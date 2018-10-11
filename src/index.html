@@ -13,60 +13,73 @@
     <div class="container" style="width: 650px;">
       <div class="row">
         <div class="col-lg-12">
-          <h1 class="text-center">Welcome to BCM</h1>
+          <h1 class="text-center">Welcome to Blockchain Mutual</h1>
           <hr/>
           <br/>
           <div id="loader">
             <p class="text-center">Loading...</p>
           </div>
           <div id="content" style="display: none;">
-	    <p id="accountAddress" class="text-center"></p>
 	    <table class="table">
               <tbody id="policyholderResults">
               </tbody>
             </table>
-             <hr/>
-          </div>
-        </div
-      </div>
-    </div>
 
-    <div id="claimsVotingArea" style="display: none;">
-      <hr />
-      <h3 id="claimsTitle" style="display: none;">Vote on a Claim!</h3>
-      <form id="claimList" style="display: none;">
-	<div class="form-group">
-	  <label for="openClaimSelect">Select Claim (Claim Info Displayed Below)</label>
-	  <select class="form-control" id="openClaimSelect" onchange="App.displayClaim();">
-	  </select>
+	    <form id="policyholderList" style="display: none;">
+	      <div class="form-group">
+		<label for="policyholderSelect">Select a Policyholder</label>
+		<select class="form-control" id="policyholderSelect" onchange="App.displayPolicyholder();">
+		</select>
+	      </div>
+	    </form>
+	    
+	    <div id="policyholderDataArea">
+	      <table class="table">
+		<tbody id="policyholderDataTable" >
+		</tbody>
+	      </table>
+	    </div>
+	    
+            <hr/>
+	    <div id="claimsVotingArea" style="display: none;">
+	      <hr />
+	      <h3 id="claimsTitle" style="display: none;">Vote on a Claim!</h3>
+	      <form id="claimList" style="display: none;">
+		<div class="form-group">
+		  <label for="openClaimSelect">Select Claim (Claim Info Displayed Below)</label>
+		  <select class="form-control" id="openClaimSelect" onchange="App.displayClaim();">
+		  </select>
+		</div>
+	      </form>
+	      <div id = "openClaimsDataArea" >
+		<table class="table">
+		  <tbody id="openClaimsData" >
+		  </tbody>
+		</table>
+	      </div>
+	      <form id="voteButton" onSubmit="App.claimVote(); return false;" style="display: none;">
+		<div class="form-group">
+		  <label for="edict">Valid or Not Valid?</label>
+		  <select class="form-control" id="edict">
+		    <option value="valid">Valid</option>
+		    <option value="invalid">Invalid</option>
+		  </select>
+		</div>
+		<button type="submit" class="btn btn-primary">Vote!</button>
+		<hr />
+	      </form>
+	      <div id = "claimsVotingHistory" style="display: none;">
+		<h3>Claim Voting Hisotry</h3>
+		<table class="table">
+		  <tbody id="votingHistoryTable" style="display: none;">
+		  </tbody>
+		</table>
+	      </div>
+            </div>
+	    <p id="accountAddress" class="text-center"></p>	     
+	  </div>
 	</div>
-      </form>
-      <div id = "openClaimsDataArea" >
-	<table class="table">
-	  <tbody id="openClaimsData" >
-	  </tbody>
-        </table>
       </div>
-      <form id="voteButton" onSubmit="App.claimVote(); return false;" style="display: none;">
-	<div class="form-group">
-	  <label for="edict">Valid or Not Valid?</label>
-	  <select class="form-control" id="edict">
-	    <option value="valid">Valid</option>
-	    <option value="invalid">Invalid</option>
-	  </select>
-	</div>
-	<button type="submit" class="btn btn-primary">Vote!</button>
-	<hr />
-      </form>
-      <div id = "claimsVotingHistory" style="display: none;">
-	<h3>Claim Voting Hisotry</h3>
-	<table class="table">
-	  <tbody id="votingHistoryTable" style="display: none;">
-	  </tbody>
-        </table>
-      </div>
-
-
     </div>
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
